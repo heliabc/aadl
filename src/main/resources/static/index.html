@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AADL 模型生成测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f7fa;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+        }
+        .header p {
+            color: #666;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .main-content {
+            display: flex;
+            gap: 20px;
+            height: calc(100vh - 140px);
+        }
+        .panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .textarea-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        textarea {
+            flex: 1;
+            width: 100%;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+            min-height: 200px;
+        }
+        textarea:focus {
+            border-color: #1890ff;
+        }
+        textarea.auto-height {
+            flex: none;
+            min-height: 100px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button.primary {
+            background-color: #1890ff;
+            color: white;
+        }
+        button.primary:hover {
+            background-color: #40a9ff;
+        }
+        button.primary:disabled {
+            background-color: #91caff;
+            cursor: not-allowed;
+        }
+        button.secondary {
+            background-color: #f5f5f5;
+            color: #666;
+        }
+        button.secondary:hover {
+            background-color: #e8e8e8;
+        }
+        .status-bar {
+            padding: 10px 15px;
+            background-color: #fafafa;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+        .status-bar.success {
+            background-color: #f6ffed;
+            color: #52c41a;
+        }
+        .status-bar.error {
+            background-color: #fff2f0;
+            color: #ff4d4f;
+        }
+        .status-bar.info {
+            background-color: #e6f7ff;
+            color: #1890ff;
+        }
+        .output-area {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            background-color: #fafafa;
+            min-height: 200px;
+        }
+        .output-area.loading::after {
+            content: '生成中...';
+            color: #999;
+        }
+        .aadl-code {
+            background-color: #f6f8fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            border: 1px solid #e0e0e0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .stream-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #1890ff;
+            font-size: 12px;
+        }
+        .stream-indicator .dot {
+            width: 6px;
+            height: 6px;
+            background-color: #1890ff;
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        .conversation-id {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            color: #999;
+            background-color: #f5f5f5;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AADL 模型生成测试</h1>
+            <p>基于需求文本生成 AADL 模型，支持流式输出</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="panel">
+                <div class="panel-title">需求输入</div>
+                <div class="textarea-wrapper">
+                    <textarea id="requirementInput" placeholder="请输入系统需求描述，例如：&#10;&#10;自动飞机空速控制系统(PCIE)：&#10;架构需求：&#10;1.自动飞机空速控制系统管理器&#10;2.自动飞机空速控制模块&#10;(1)自动飞机空速控制模块管理器&#10;(2)空速分析分区：空速差计算任务&#10;(3)空速控制分区：空速控制任务&#10;(4)自动飞机空速控制网络接口&#10;(5)自动飞机空速控制处理器：空速分析分区运行、空速控制分区运行、自动飞机空速控制网络接口运行&#10;(6)自动飞机空速控制存储器：空速分析分区内存、空速控制分区内存、自动飞机空速控制网络接口内存&#10;3.设备：空速传感器、控制面板、油门、升降舵、扰流板、襟翼&#10;4.总线：6个PCIE总线&#10;5.数据：当前空速、目标空速、空速差、空速控制指令&#10;6.程序&#10;(1)模块与设备：初始化程序、运行程序、终止程序&#10;(2)分区与网络接口：冷启动程序、热启动程序、正常程序、空闲程序&#10;(3)任务：空速差计算程序、空速控制程序"></textarea>
+                </div>
+                <div class="button-group">
+                    <button id="generateBtn" class="primary">开始生成 (流式)</button>
+                    <button id="generateNonStreamBtn" class="secondary">生成 (非流式)</button>
+                    <button id="clearBtn" class="secondary">清空</button>
+                </div>
+                <div class="status-bar" id="statusBar">准备就绪</div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">生成结果</div>
+                <div class="conversation-id" id="conversationId">Conversation ID: <span id="convIdValue">-</span></div>
+                <div class="output-area" id="outputArea">等待生成...</div>
+                <div id="aadlCodeArea" style="display: none;">
+                    <div class="panel-title" style="font-size: 14px; margin-top: 15px;">AADL 代码</div>
+                    <div class="aadl-code" id="aadlCode"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const requirementInput = document.getElementById('requirementInput');
+        const generateBtn = document.getElementById('generateBtn');
+        const generateNonStreamBtn = document.getElementById('generateNonStreamBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const statusBar = document.getElementById('statusBar');
+        const outputArea = document.getElementById('outputArea');
+        const aadlCodeArea = document.getElementById('aadlCodeArea');
+        const aadlCode = document.getElementById('aadlCode');
+        const convIdValue = document.getElementById('convIdValue');
+
+        let currentConversationId = null;
+
+        function generateConversationId() {
+            return 'conv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function setStatus(message, type = 'info') {
+            statusBar.textContent = message;
+            statusBar.className = 'status-bar ' + type;
+        }
+
+        function clearOutput() {
+            outputArea.innerHTML = '等待生成...';
+            aadlCodeArea.style.display = 'none';
+            aadlCode.textContent = '';
+        }
+
+        function appendOutput(text) {
+            outputArea.innerHTML += text;
+            outputArea.scrollTop = outputArea.scrollHeight;
+        }
+
+        generateBtn.addEventListener('click', async () => {
+            const requirement = requirementInput.value.trim();
+            if (!requirement) {
+                setStatus('请输入需求描述', 'error');
+                return;
+            }
+
+            currentConversationId = generateConversationId();
+            convIdValue.textContent = currentConversationId;
+            
+            generateBtn.disabled = true;
+            generateNonStreamBtn.disabled = true;
+            clearOutput();
+            
+            setStatus('正在生成 AADL 模型...', 'info');
+            outputArea.innerHTML = '<div class="stream-indicator"><span class="dot"></span> 正在生成中，请稍候...</div>';
+
+            try {
+                const response = await fetch('/api/modules/aadl/generate-from-requirement/stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'text/event-stream'
+                    },
+                    body: JSON.stringify({
+                        conversationId: currentConversationId,
+                        requirementText: requirement
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let fullOutput = '';
+                let buffer = '';
+                let currentEvent = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('event:')) {
+                            currentEvent = line.substring(6).trim();
+                            console.log('[SSE] Event:', currentEvent);
+                        } else if (line.startsWith('data:')) {
+                            const dataStr = line.substring(5).trim();
+                            console.log('[SSE] Data:', dataStr);
+                            if (dataStr) {
+                                try {
+                                    const data = JSON.parse(dataStr);
+                                    
+                                    if (currentEvent === 'delta' && data.text) {
+                                        fullOutput += data.text;
+                                        appendOutput(data.text.replace(/\n/g, '<br>'));
+                                    } else if (currentEvent === 'think' && data.text) {
+                                        appendOutput('<span style="color: #999; font-style: italic;">' + data.text.replace(/\n/g, '<br>') + '</span>');
+                                    } else if (currentEvent === 'done') {
+                                        if (data.reply) {
+                                            fullOutput += data.reply;
+                                            outputArea.innerHTML = data.reply.replace(/\n/g, '<br>');
+                                        }
+                                        if (data.aadlModel) {
+                                            aadlCode.textContent = data.aadlModel;
+                                            aadlCodeArea.style.display = 'block';
+                                        }
+                                    } else if (currentEvent === 'status' && data.stage) {
+                                        if (data.stage === 'step1_template_started') {
+                                            setStatus('步骤1：生成架构需求模板...', 'info');
+                                        } else if (data.stage === 'step2_aadl_started') {
+                                            setStatus('步骤2：生成 AADL 代码...', 'info');
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.warn('解析 SSE 数据失败:', e, 'Data:', dataStr);
+                                }
+                            }
+                        } else if (line === '') {
+                            currentEvent = '';
+                        }
+                    }
+                }
+
+                setStatus('生成完成！', 'success');
+            } catch (error) {
+                setStatus('生成失败: ' + error.message, 'error');
+                outputArea.innerHTML = '<span style="color: #ff4d4f;">生成失败: ' + error.message + '</span>';
+            } finally {
+                generateBtn.disabled = false;
+                generateNonStreamBtn.disabled = false;
+            }
+        });
+
+        generateNonStreamBtn.addEventListener('click', async () => {
+            const requirement = requirementInput.value.trim();
+            if (!requirement) {
+                setStatus('请输入需求描述', 'error');
+                return;
+            }
+
+            currentConversationId = generateConversationId();
+            convIdValue.textContent = currentConversationId;
+            
+            generateBtn.disabled = true;
+            generateNonStreamBtn.disabled = true;
+            clearOutput();
+            
+            setStatus('正在生成 AADL 模型...', 'info');
+            outputArea.innerHTML = '正在生成中，请稍候...';
+
+            try {
+                const response = await fetch('http://localhost:8081/api/modules/aadl/generate-from-requirement', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        conversationId: currentConversationId,
+                        requirementText: requirement
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
+
+                const result = await response.json();
+                const aadlModel = result.aadlModel;
+                
+                outputArea.innerHTML = '✅ 生成完成！';
+                aadlCode.textContent = aadlModel;
+                aadlCodeArea.style.display = 'block';
+                setStatus('生成完成！', 'success');
+            } catch (error) {
+                setStatus('生成失败: ' + error.message, 'error');
+                outputArea.innerHTML = '<span style="color: #ff4d4f;">生成失败: ' + error.message + '</span>';
+            } finally {
+                generateBtn.disabled = false;
+                generateNonStreamBtn.disabled = false;
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            requirementInput.value = '';
+            clearOutput();
+            convIdValue.textContent = '-';
+            setStatus('准备就绪', 'info');
+        });
+    </script>
+</body>
+</html>

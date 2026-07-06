@@ -1,0 +1,106 @@
+# --- Maven/Gradle build output ---
+target/
+build/
+out/
+!**/src/test/**/target/
+
+# --- Compiled packages ---
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# --- Maven ---
+dependency-reduced-pom.xml
+.mvn/tmp/
+
+# --- Local data and runtime artifacts ---
+data/
+*.db
+uploads/
+
+# --- IDE: IntelliJ IDEA ---
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# --- IDE: Eclipse / STS ---
+.classpath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+bin/
+
+# --- IDE: VS Code ---
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# --- IDE: NetBeans ---
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# --- Logs ---
+*.log
+logs/
+logs.txt
+search.log
+app.log
+
+# --- Environment / local overrides ---
+.env
+.env.*
+!.env.example
+application-local.yml
+application-local.properties
+
+# --- OS artifacts ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# --- Windows reserved device names ---
+nul
+NUL
+CON
+PRN
+AUX
+
+# --- Temp & Backup ---
+*.bak
+*.orig
+*.tmp
+*.swp
+*~
+*.old
+
+# --- JVM ---
+hs_err_pid*
+replay_pid*
+.java-version
+
+# --- AI / Tool config ---
+.claude/
+.opencode/
+.codegraph/
+
+# --- Local scratch / test helpers ---
+fix2.py
+patch_qdrant.py
+temp_*.java

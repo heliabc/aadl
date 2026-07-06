@@ -1,0 +1,343 @@
+version: 1
+
+global:
+  alwaysRules: |
+    1. 只输出完整 AADL 代码，不要输出 Markdown 代码块、解释或自然语言说明。
+    2. 不要生成需求模板中未定义的连接、端口、属性、线程、进程、设备、总线或数据。
+    3. 所有 AADL 标识符必须使用英文和下划线，不要输出中文标识符。
+    4. 所有 implementation 后缀统一使用 .impl。
+    5. package 名与顶层 system 名保持一致。
+    6. 如果某类结构没有在需求模板中出现，不要因为示例或规则文本主动补充该结构。
+
+rules:
+  - id: package_structure
+    title: 整体包结构
+    always: true
+    content: |
+      package 系统英文名
+      public
+        -- 所有组件声明、组件实现、数据、程序均放在 public 中
+      end 系统英文名;
+
+  - id: top_system
+    title: 顶层系统模板
+    always: true
+    content: |
+      system 系统名
+      end 系统名;
+
+      system implementation 系统名.impl
+      subcomponents
+        系统管理器名 : device 系统管理器名.impl;
+        系统模块名 : system 系统模块名.impl;
+        子系统名 : system 子系统名.impl;
+        设备名 : device 设备名.impl;
+        总线实例名 : bus 总线类型名.impl;
+      end 系统名.impl;
+
+      规则：
+      1. 顶层系统表示整个系统。
+      2. 系统管理器建模为 device。
+      3. 系统模块建模为 system。
+      4. AADL 中表达“子系统”的方式是：在某个 system implementation 的 subcomponents 中声明另一个 system 子组件，例如 子系统实例名 : system 子系统类型名.impl;。
+      5. 如果需求中有多个子系统，必须把这些子系统作为父 system implementation 的 system 子组件放入 subcomponents 中。
+      6. 子系统自身还必须单独生成 system 声明和 system implementation。
+      7. 外部设备全部建模为 device。
+      8. 如果需求中给出 N 个总线，则在顶层系统实现中生成 N 个 bus 子组件。
+      9. 总线实例命名为 总线类型名_1、总线类型名_2、...、总线类型名_N。
+      10. 如果需求中说明总线为 0 个，则不要生成 bus。
+  - id: system_manager
+    title: 系统管理器模板
+    trigger:
+      anyKeywords: ["系统管理器", "管理器"]
+    content: |
+      device 系统管理器名
+      end 系统管理器名;
+
+      device implementation 系统管理器名.impl
+      end 系统管理器名.impl;
+
+      规则：
+      如果需求中没有说明内部结构，则只生成空的 device implementation。
+
+  - id: system_module
+    title: 系统模块模板
+    always: true
+    content: |
+      system 系统模块名
+      end 系统模块名;
+
+      system implementation 系统模块名.impl
+      subcomponents
+        系统模块管理器名 : device 系统模块管理器名.impl;
+        子系统名 : system 子系统名.impl;
+        软件分区名 : process 软件分区名.impl;
+        网络接口名 : device 网络接口名.impl;
+        处理器名 : processor 处理器名.impl;
+        存储器名 : memory 存储器名.impl;
+      end 系统模块名.impl;
+
+      规则：
+      1. 系统模块内部可以包含模块管理器、子系统、软件分区、网络接口、处理器和存储器。
+      2. 模块管理器建模为 device。
+      3. 普通业务功能层级、功能模块、功能子系统建模为 system 子组件。
+      4. 子系统不能只声明 system 类型，必须同时在父 system implementation 的 subcomponents 中以“子系统实例名 : system 子系统类型名.impl;”形式实例化。
+      5. 子系统自身还必须单独生成 system 声明和 system implementation。
+      6. 只有需求明确出现“分区、进程、软件分区、运行分区、ARINC653 分区”时，才建模为 process。
+      7. 网络接口建模为 device。
+      8. 处理器建模为 processor。
+      9. 存储器建模为 memory。
+      10. 如果需求中没有某类组件，则不要生成该类组件。
+  - id: subsystem
+    title: 子系统模板
+    trigger:
+      anyKeywords: ["子系统", "功能子系统", "控制子系统", "通信子系统", "导航子系统", "检测子系统", "功能模块", "业务模块", "模块"]
+    content: |
+      system 子系统名
+      end 子系统名;
+
+      system implementation 子系统名.impl
+      subcomponents
+        子子系统名 : system 子子系统名.impl;
+        设备名 : device 设备名.impl;
+        软件分区名 : process 软件分区名.impl;
+      end 子系统名.impl;
+
+      规则：
+      1. AADL 没有单独的 subsystem 组件类别，子系统统一建模为 system。
+      2. AADL 里表达“子系统”的方式是：在某个 system implementation 的 subcomponents 中声明另一个 system 子组件，例如 子系统实例名 : system 子系统类型名.impl;。
+      3. 每个子系统既要有自己的 system 声明和 system implementation，也必须被放入父 system implementation 的 subcomponents 中，否则它只是孤立类型，不属于整体架构。
+      4. 顶层 system 或系统模块 system 可以包含多个 system 子组件，用于表示多个子系统。
+      5. 子系统内部如果还有功能层级，继续使用 system 子组件。
+      6. 只有当需求明确描述“分区、进程、软件分区、运行分区、ARINC653 分区”时，才在子系统内使用 process。
+      7. 不要把普通业务功能子系统、功能模块、控制功能、通信功能直接建模为 process。
+  - id: module_manager
+    title: 模块管理器模板
+    trigger:
+      anyKeywords: ["模块管理器"]
+    content: |
+      device 模块管理器名
+      end 模块管理器名;
+
+      device implementation 模块管理器名.impl
+      end 模块管理器名.impl;
+
+  - id: partition
+    title: 分区模板
+    trigger:
+      anyKeywords: ["软件分区", "运行分区", "ARINC653", "ARINC 653", "进程", "process"]
+    content: |
+      process 分区名
+      end 分区名;
+
+      process implementation 分区名.impl
+      subcomponents
+        任务名 : thread 任务名.impl;
+      end 分区名.impl;
+
+      规则：
+      1. process 只用于需求明确描述的软件分区、运行分区、进程或 ARINC653 分区。
+      2. 每个分区内部包含其对应任务。
+      3. 任务建模为 thread。
+      4. 如果需求只是说“子系统、功能模块、控制功能、通信功能”，不要使用 process，应使用 system 子组件。
+  - id: task
+    title: 任务模板
+    trigger:
+      anyKeywords: ["任务", "thread"]
+    content: |
+      thread 任务名
+      end 任务名;
+
+      thread implementation 任务名.impl
+      end 任务名.impl;
+
+  - id: network_interface
+    title: 网络接口模板
+    trigger:
+      anyKeywords: ["网络接口", "网口", "Network_interface", "Net_interface"]
+    content: |
+      device 网络接口名
+      end 网络接口名;
+
+      device implementation 网络接口名.impl
+      end 网络接口名.impl;
+
+      规则：
+      1. 网络接口建模为 device。
+      2. 如果需求没有给出网络接口内部结构，则生成空实现。
+
+  - id: processor
+    title: 处理器模板
+    trigger:
+      anyKeywords: ["处理器", "分区运行", "网络接口运行", "运行于", "processor"]
+    content: |
+      processor 处理器名
+      end 处理器名;
+
+      processor implementation 处理器名.impl
+      subcomponents
+        分区名_runtime : virtual processor 分区名_runtime.impl;
+        网络接口名_runtime : virtual processor 网络接口名_runtime.impl;
+      end 处理器名.impl;
+
+      virtual processor 分区名_runtime
+      end 分区名_runtime;
+
+      virtual processor implementation 分区名_runtime.impl
+      end 分区名_runtime.impl;
+
+      规则：
+      1. 需求中“某分区运行”对应一个 virtual processor。
+      2. 需求中“网络接口运行”也对应一个 virtual processor。
+      3. virtual processor 命名为 对象名_runtime。
+      4. 所有 virtual processor 都需要单独声明和实现。
+
+  - id: memory
+    title: 存储器模板
+    trigger:
+      anyKeywords: ["存储器", "内存", "memory"]
+    content: |
+      memory 存储器名
+      end 存储器名;
+
+      memory implementation 存储器名.impl
+      subcomponents
+        分区名_memory : memory 分区名_memory.impl;
+        网络接口名_memory : memory 网络接口名_memory.impl;
+      end 存储器名.impl;
+
+      memory 分区名_memory
+      end 分区名_memory;
+
+      memory implementation 分区名_memory.impl
+      end 分区名_memory.impl;
+
+      规则：
+      1. 需求中“某分区内存”对应一个 memory 子组件。
+      2. 需求中“网络接口内存”也对应一个 memory 子组件。
+      3. memory 命名为 对象名_memory。
+      4. 所有 memory 都需要单独声明和实现。
+
+  - id: device
+    title: 设备模板
+    trigger:
+      anyKeywords: ["设备", "传感器", "控制面板", "油门", "舵", "device"]
+    content: |
+      device 设备名
+      end 设备名;
+
+      device implementation 设备名.impl
+      end 设备名.impl;
+
+      规则：
+      1. 需求中列出的所有外部设备均按照该模板生成。
+      2. 如果设备没有内部结构，则实现为空。
+
+  - id: bus
+    title: 总线模板
+    trigger:
+      anyKeywords: ["总线", "PCIE", "PCIe", "bus"]
+    skipIfKeywords: ["0个总线", "0 个总线", "总线为0", "总线为 0", "无总线", "没有总线"]
+    content: |
+      bus 总线类型名
+      end 总线类型名;
+
+      bus implementation 总线类型名.impl
+      end 总线类型名.impl;
+
+      规则：
+      1. 如果需求中给出“N 个某类型总线”，则生成一个 bus 类型和一个 bus implementation。
+      2. 顶层系统中生成 总线类型名_1 至 总线类型名_N 的 bus 子组件。
+      3. 不要为每个总线实例重复声明 bus 类型。
+
+  - id: data
+    title: 数据模板
+    trigger:
+      anyKeywords: ["数据", "当前", "目标", "状态", "指令", "data"]
+    content: |
+      data 数据名
+      end 数据名;
+
+      data implementation 数据名.impl
+      end 数据名.impl;
+
+      规则：
+      1. 需求中列出的每一种数据均生成 data 和 data implementation。
+      2. 如果需求没有给出数据结构、类型、单位或属性，则实现为空。
+
+  - id: subprogram
+    title: 程序模板
+    trigger:
+      anyKeywords: ["程序", "初始化", "运行程序", "终止", "冷启动", "热启动", "正常程序", "空闲程序", "subprogram"]
+    content: |
+      subprogram 程序名
+      end 程序名;
+
+      subprogram implementation 程序名.impl
+      end 程序名.impl;
+
+      规则：
+      1. 模块与设备程序包括：Initialization_program、Run_program、Termination_program。
+      2. 分区与网络接口程序包括：Cold_start_program、Hot_start_program、Normal_program、Idle_program。
+      3. 任务程序根据需求生成，例如 Airspeed_calculation_program、Airspeed_response_program。
+      4. 程序名称必须与需求语义一致，不要误写为 Initation_program、Function_program 或 Warm_start_program。
+      5. 如果不需要区分不同组件的程序实现，则统一使用 程序名.impl。
+
+  - id: recommended_subprograms
+    title: 推荐的程序生成方式
+    trigger:
+      anyKeywords: ["初始化程序", "运行程序", "终止程序", "冷启动程序", "热启动程序", "正常程序", "空闲程序"]
+    content: |
+      优先采用固定程序名：
+      Initialization_program、Run_program、Termination_program、Cold_start_program、Hot_start_program、Normal_program、Idle_program。
+      这些程序均需要 subprogram 声明和 subprogram implementation，implementation 后缀统一为 .impl。
+
+  - id: naming
+    title: 命名规则
+    always: true
+    content: |
+      1. 中文名称转换为英文直译。
+      2. 英文名称使用下划线连接。
+      3. 组件名保持统一风格。
+      4. package 名与顶层 system 名一致。
+      5. 所有 implementation 后缀统一使用 .impl。
+      6. “热启动程序”必须翻译为 Hot_start_program。
+      7. “运行程序”必须翻译为 Run_program。
+      8. “初始化程序”必须翻译为 Initialization_program。
+      9. “网络接口”可翻译为 Network_interface 或 Net_interface，但全文必须保持一致。
+      10. 不要出现拼写错误，例如 Initation_program。
+
+order:
+  content: |
+    生成 AADL 代码时按照以下顺序：
+    1. package
+    2. 顶层 system
+    3. 顶层 system implementation
+    4. 系统管理器 device 及 implementation
+    5. 系统模块 system 及 implementation
+    6. 模块管理器 device 及 implementation
+    7. 各 system 子系统及 implementation
+    8. 各 process 软件分区及 implementation
+    9. 各 thread 任务及 implementation
+    10. 网络接口 device 及 implementation
+    11. processor 及 processor implementation
+    12. virtual processor 声明及 implementation
+    13. memory 及 memory implementation
+    14. 子 memory 声明及 implementation
+    15. 外部 device 声明及 implementation
+    16. bus 声明及 implementation
+    17. data 声明及 implementation
+    18. subprogram 声明及 implementation
+    19. end package
+
+forbidden:
+  content: |
+    禁止规则：
+    1. 不要生成需求中未定义的连接。
+    2. 不要生成需求中未定义的端口。
+    3. 不要生成需求中未定义的属性。
+    4. 不要生成需求中未定义的线程、进程、设备、总线或数据。
+    5. 如果需求中总线为 0，则不要生成 bus。
+    6. 不要添加自然语言解释。
+    7. 不要输出代码块标记。
+    8. 只输出完整 AADL 代码。

@@ -1,0 +1,38 @@
+server:
+  port: 8081
+  tomcat:
+    async-request-timeout: 1000000
+
+spring:
+  datasource:
+    url: jdbc:sqlite:${app.data-dir}/app.db
+    driver-class-name: org.sqlite.JDBC
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+    decoder:
+      charset: UTF-8
+
+app:
+  data-dir: data
+  upload-dir: ${app.data-dir}/uploads
+  knowledge-base-dir: ${app.data-dir}/knowledge-base
+  user-knowledge-dir: ${app.data-dir}/user-knowledge
+  llm-provider: ollama
+  ollama-url: http://localhost:11434/api/chat
+  ollama-model: qwen3:8b #deepseek-r1:1.5b，qwen3:8b
+  openai-url: https://www.dmxapi.cn/v1/chat/completions
+  openai-model: deepseek-v4-pro-guan
+  openai-api-key: sk-UQbb0b6zVICvKjIrjwwLAlpFIwaagzGiS4UCZDuiSbsDtK1j
+  embed-model: qwen3-embedding:latest
+  langchain-enabled: true
+  qdrant:
+    host: localhost
+    port: 6333
+    api-key: ""
+    collection: aadl-knowledge
+
+chat:
+  memory:
+    max-messages: 20
