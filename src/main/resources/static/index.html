@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AADL 模型生成测试</title>
+    <title>AADL 模型生成测试 - 多轮对话</title>
     <style>
         * {
             margin: 0;
@@ -16,7 +16,7 @@
             min-height: 100vh;
         }
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -45,9 +45,14 @@
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             padding: 20px;
-            flex: 1;
             display: flex;
             flex-direction: column;
+        }
+        .panel-left {
+            width: 35%;
+        }
+        .panel-right {
+            flex: 1;
         }
         .panel-title {
             font-size: 16px;
@@ -165,7 +170,7 @@
             font-size: 13px;
             line-height: 1.6;
             border: 1px solid #e0e0e0;
-            max-height: 400px;
+            max-height: 300px;
             overflow-y: auto;
         }
         .stream-indicator {
@@ -196,33 +201,132 @@
             margin-bottom: 10px;
             display: inline-block;
         }
+
+        /* 聊天历史样式 */
+        .chat-history {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            padding-right: 5px;
+        }
+        .chat-message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            max-width: 100%;
+        }
+        .chat-message.user {
+            background-color: #e6f7ff;
+            margin-left: 20%;
+        }
+        .chat-message.assistant {
+            background-color: #f6ffed;
+            margin-right: 20%;
+        }
+        .chat-message .role {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #666;
+        }
+        .chat-message.user .role {
+            color: #1890ff;
+        }
+        .chat-message.assistant .role {
+            color: #52c41a;
+        }
+        .chat-message .content {
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .chat-input-area {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .chat-input-area textarea {
+            flex: none;
+            min-height: 80px;
+            max-height: 200px;
+        }
+        .module-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .module-selector label {
+            font-size: 14px;
+            color: #666;
+        }
+        .module-selector select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            outline: none;
+        }
+        .module-selector select:focus {
+            border-color: #1890ff;
+        }
+        .new-conversation-btn {
+            margin-top: 10px;
+            padding: 8px 16px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>AADL 模型生成测试</h1>
-            <p>基于需求文本生成 AADL 模型，支持流式输出</p>
+            <h1>AADL 模型生成测试 - 多轮对话</h1>
+            <p>基于需求文本生成 AADL 模型，支持流式输出和多轮对话</p>
         </div>
         
         <div class="main-content">
-            <div class="panel">
+            <div class="panel panel-left">
                 <div class="panel-title">需求输入</div>
                 <div class="textarea-wrapper">
                     <textarea id="requirementInput" placeholder="请输入系统需求描述，例如：&#10;&#10;自动飞机空速控制系统(PCIE)：&#10;架构需求：&#10;1.自动飞机空速控制系统管理器&#10;2.自动飞机空速控制模块&#10;(1)自动飞机空速控制模块管理器&#10;(2)空速分析分区：空速差计算任务&#10;(3)空速控制分区：空速控制任务&#10;(4)自动飞机空速控制网络接口&#10;(5)自动飞机空速控制处理器：空速分析分区运行、空速控制分区运行、自动飞机空速控制网络接口运行&#10;(6)自动飞机空速控制存储器：空速分析分区内存、空速控制分区内存、自动飞机空速控制网络接口内存&#10;3.设备：空速传感器、控制面板、油门、升降舵、扰流板、襟翼&#10;4.总线：6个PCIE总线&#10;5.数据：当前空速、目标空速、空速差、空速控制指令&#10;6.程序&#10;(1)模块与设备：初始化程序、运行程序、终止程序&#10;(2)分区与网络接口：冷启动程序、热启动程序、正常程序、空闲程序&#10;(3)任务：空速差计算程序、空速控制程序"></textarea>
                 </div>
                 <div class="button-group">
-                    <button id="generateBtn" class="primary">开始生成 (流式)</button>
-                    <button id="generateNonStreamBtn" class="secondary">生成 (非流式)</button>
-                    <button id="clearBtn" class="secondary">清空</button>
+                    <button id="generateBtn" class="primary">一键生成 (流式)</button>
+                    <button id="generateNonStreamBtn" class="secondary">一键生成 (非流式)</button>
                 </div>
                 <div class="status-bar" id="statusBar">准备就绪</div>
             </div>
             
-            <div class="panel">
-                <div class="panel-title">生成结果</div>
+            <div class="panel panel-right">
+                <div class="panel-title">对话历史</div>
                 <div class="conversation-id" id="conversationId">Conversation ID: <span id="convIdValue">-</span></div>
-                <div class="output-area" id="outputArea">等待生成...</div>
+                
+                <!-- 聊天历史区域 -->
+                <div class="chat-history" id="chatHistory">
+                    <div style="text-align: center; color: #999; padding: 20px;">
+                        暂无对话历史，开始新对话吧！
+                    </div>
+                </div>
+                
+                <!-- 输入区域 -->
+                <div class="chat-input-area">
+                    <div class="module-selector">
+                        <label for="moduleSelect">模块:</label>
+                        <select id="moduleSelect">
+                            <option value="general">通用对话</option>
+                            <option value="aadl">AADL生成</option>
+                            
+                        </select>
+                    </div>
+                    <textarea id="chatInput" placeholder="输入您的问题或需求..."></textarea>
+                    <div class="button-group">
+                        <button id="sendBtn" class="primary">发送消息</button>
+                        <button id="clearBtn" class="secondary">清空对话</button>
+                        <button id="newConvBtn" class="secondary new-conversation-btn">新对话</button>
+                    </div>
+                </div>
+                
+                <!-- AADL代码展示区域 -->
                 <div id="aadlCodeArea" style="display: none;">
                     <div class="panel-title" style="font-size: 14px; margin-top: 15px;">AADL 代码</div>
                     <div class="aadl-code" id="aadlCode"></div>
@@ -235,12 +339,16 @@
         const requirementInput = document.getElementById('requirementInput');
         const generateBtn = document.getElementById('generateBtn');
         const generateNonStreamBtn = document.getElementById('generateNonStreamBtn');
-        const clearBtn = document.getElementById('clearBtn');
         const statusBar = document.getElementById('statusBar');
-        const outputArea = document.getElementById('outputArea');
+        const conversationId = document.getElementById('convIdValue');
+        const chatHistory = document.getElementById('chatHistory');
+        const chatInput = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const newConvBtn = document.getElementById('newConvBtn');
         const aadlCodeArea = document.getElementById('aadlCodeArea');
         const aadlCode = document.getElementById('aadlCode');
-        const convIdValue = document.getElementById('convIdValue');
+        const moduleSelect = document.getElementById('moduleSelect');
 
         let currentConversationId = null;
 
@@ -253,17 +361,34 @@
             statusBar.className = 'status-bar ' + type;
         }
 
-        function clearOutput() {
-            outputArea.innerHTML = '等待生成...';
-            aadlCodeArea.style.display = 'none';
-            aadlCode.textContent = '';
+        function clearChatHistory() {
+            chatHistory.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">暂无对话历史，开始新对话吧！</div>';
         }
 
-        function appendOutput(text) {
-            outputArea.innerHTML += text;
-            outputArea.scrollTop = outputArea.scrollHeight;
+        function addMessageToHistory(role, content, isStreaming = false) {
+            if (chatHistory.innerHTML.includes('暂无对话历史')) {
+                chatHistory.innerHTML = '';
+            }
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'chat-message ' + role;
+            messageDiv.innerHTML = `
+                <div class="role">${role === 'user' ? '用户' : '助手'}</div>
+                <div class="content">${content.replace(/\n/g, '<br>')}</div>
+            `;
+            chatHistory.appendChild(messageDiv);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+            
+            return messageDiv;
         }
 
+        function updateMessageContent(messageDiv, content) {
+            const contentDiv = messageDiv.querySelector('.content');
+            contentDiv.innerHTML = content.replace(/\n/g, '<br>');
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        // 一键生成（流式）
         generateBtn.addEventListener('click', async () => {
             const requirement = requirementInput.value.trim();
             if (!requirement) {
@@ -271,15 +396,17 @@
                 return;
             }
 
-            currentConversationId = generateConversationId();
-            convIdValue.textContent = currentConversationId;
+            if (!currentConversationId) {
+                currentConversationId = generateConversationId();
+                conversationId.textContent = currentConversationId;
+            }
             
             generateBtn.disabled = true;
             generateNonStreamBtn.disabled = true;
-            clearOutput();
+            sendBtn.disabled = true;
             
             setStatus('正在生成 AADL 模型...', 'info');
-            outputArea.innerHTML = '<div class="stream-indicator"><span class="dot"></span> 正在生成中，请稍候...</div>';
+            addMessageToHistory('user', requirement);
 
             try {
                 const response = await fetch('/api/modules/aadl/generate-from-requirement/stream', {
@@ -303,6 +430,7 @@
                 let fullOutput = '';
                 let buffer = '';
                 let currentEvent = '';
+                let assistantMessageDiv = null;
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -315,23 +443,29 @@
                     for (const line of lines) {
                         if (line.startsWith('event:')) {
                             currentEvent = line.substring(6).trim();
-                            console.log('[SSE] Event:', currentEvent);
                         } else if (line.startsWith('data:')) {
                             const dataStr = line.substring(5).trim();
-                            console.log('[SSE] Data:', dataStr);
                             if (dataStr) {
                                 try {
                                     const data = JSON.parse(dataStr);
                                     
                                     if (currentEvent === 'delta' && data.text) {
                                         fullOutput += data.text;
-                                        appendOutput(data.text.replace(/\n/g, '<br>'));
+                                        if (!assistantMessageDiv) {
+                                            assistantMessageDiv = addMessageToHistory('assistant', data.text);
+                                        } else {
+                                            updateMessageContent(assistantMessageDiv, fullOutput);
+                                        }
                                     } else if (currentEvent === 'think' && data.text) {
-                                        appendOutput('<span style="color: #999; font-style: italic;">' + data.text.replace(/\n/g, '<br>') + '</span>');
+                                        // 思考内容不显示在聊天历史中
                                     } else if (currentEvent === 'done') {
                                         if (data.reply) {
-                                            fullOutput += data.reply;
-                                            outputArea.innerHTML = data.reply.replace(/\n/g, '<br>');
+                                            fullOutput = data.reply;
+                                            if (assistantMessageDiv) {
+                                                updateMessageContent(assistantMessageDiv, fullOutput);
+                                            } else {
+                                                addMessageToHistory('assistant', fullOutput);
+                                            }
                                         }
                                         if (data.aadlModel) {
                                             aadlCode.textContent = data.aadlModel;
@@ -357,13 +491,15 @@
                 setStatus('生成完成！', 'success');
             } catch (error) {
                 setStatus('生成失败: ' + error.message, 'error');
-                outputArea.innerHTML = '<span style="color: #ff4d4f;">生成失败: ' + error.message + '</span>';
+                addMessageToHistory('assistant', '生成失败: ' + error.message);
             } finally {
                 generateBtn.disabled = false;
                 generateNonStreamBtn.disabled = false;
+                sendBtn.disabled = false;
             }
         });
 
+        // 一键生成（非流式）
         generateNonStreamBtn.addEventListener('click', async () => {
             const requirement = requirementInput.value.trim();
             if (!requirement) {
@@ -371,18 +507,20 @@
                 return;
             }
 
-            currentConversationId = generateConversationId();
-            convIdValue.textContent = currentConversationId;
+            if (!currentConversationId) {
+                currentConversationId = generateConversationId();
+                conversationId.textContent = currentConversationId;
+            }
             
             generateBtn.disabled = true;
             generateNonStreamBtn.disabled = true;
-            clearOutput();
+            sendBtn.disabled = true;
             
             setStatus('正在生成 AADL 模型...', 'info');
-            outputArea.innerHTML = '正在生成中，请稍候...';
+            addMessageToHistory('user', requirement);
 
             try {
-                const response = await fetch('http://localhost:8081/api/modules/aadl/generate-from-requirement', {
+                const response = await fetch('/api/modules/aadl/generate-from-requirement', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -400,24 +538,148 @@
                 const result = await response.json();
                 const aadlModel = result.aadlModel;
                 
-                outputArea.innerHTML = '✅ 生成完成！';
+                addMessageToHistory('assistant', '✅ 生成完成！\n\n```aadl\n' + aadlModel + '\n```');
                 aadlCode.textContent = aadlModel;
                 aadlCodeArea.style.display = 'block';
                 setStatus('生成完成！', 'success');
             } catch (error) {
                 setStatus('生成失败: ' + error.message, 'error');
-                outputArea.innerHTML = '<span style="color: #ff4d4f;">生成失败: ' + error.message + '</span>';
+                addMessageToHistory('assistant', '生成失败: ' + error.message);
             } finally {
                 generateBtn.disabled = false;
                 generateNonStreamBtn.disabled = false;
+                sendBtn.disabled = false;
             }
         });
 
+        // 发送聊天消息
+        sendBtn.addEventListener('click', async () => {
+            const message = chatInput.value.trim();
+            if (!message) {
+                setStatus('请输入消息内容', 'error');
+                return;
+            }
+
+            if (!currentConversationId) {
+                currentConversationId = generateConversationId();
+                conversationId.textContent = currentConversationId;
+            }
+            
+            const module = moduleSelect.value;
+            sendBtn.disabled = true;
+            
+            addMessageToHistory('user', message);
+            chatInput.value = '';
+
+            try {
+                setStatus('正在处理...', 'info');
+                
+                const response = await fetch('/api/chat/stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'text/event-stream'
+                    },
+                    body: JSON.stringify({
+                        conversationId: currentConversationId,
+                        module: module,
+                        message: message,
+                        attachmentIds: []
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let fullOutput = '';
+                let buffer = '';
+                let currentEvent = '';
+                let assistantMessageDiv = null;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('event:')) {
+                            currentEvent = line.substring(6).trim();
+                        } else if (line.startsWith('data:')) {
+                            const dataStr = line.substring(5).trim();
+                            if (dataStr) {
+                                try {
+                                    const data = JSON.parse(dataStr);
+                                    
+                                    if (currentEvent === 'delta' && data.text) {
+                                        fullOutput += data.text;
+                                        if (!assistantMessageDiv) {
+                                            assistantMessageDiv = addMessageToHistory('assistant', data.text);
+                                        } else {
+                                            updateMessageContent(assistantMessageDiv, fullOutput);
+                                        }
+                                    } else if (currentEvent === 'think' && data.text) {
+                                        // 思考内容不显示
+                                    } else if (currentEvent === 'done') {
+                                        if (data.reply) {
+                                            fullOutput = data.reply;
+                                            if (assistantMessageDiv) {
+                                                updateMessageContent(assistantMessageDiv, fullOutput);
+                                            } else {
+                                                addMessageToHistory('assistant', fullOutput);
+                                            }
+                                        }
+                                        if (data.moduleData && data.moduleData.aadl) {
+                                            aadlCode.textContent = data.moduleData.aadl.content;
+                                            aadlCodeArea.style.display = 'block';
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.warn('解析 SSE 数据失败:', e);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                setStatus('处理完成！', 'success');
+            } catch (error) {
+                setStatus('发送失败: ' + error.message, 'error');
+                addMessageToHistory('assistant', '发送失败: ' + error.message);
+            } finally {
+                sendBtn.disabled = false;
+            }
+        });
+
+        // 清空对话
         clearBtn.addEventListener('click', () => {
-            requirementInput.value = '';
-            clearOutput();
-            convIdValue.textContent = '-';
-            setStatus('准备就绪', 'info');
+            clearChatHistory();
+            aadlCodeArea.style.display = 'none';
+            aadlCode.textContent = '';
+            setStatus('对话已清空', 'info');
+        });
+
+        // 新对话
+        newConvBtn.addEventListener('click', () => {
+            currentConversationId = generateConversationId();
+            conversationId.textContent = currentConversationId;
+            clearChatHistory();
+            aadlCodeArea.style.display = 'none';
+            aadlCode.textContent = '';
+            setStatus('已开始新对话', 'info');
+        });
+
+        // 回车发送
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendBtn.click();
+            }
         });
     </script>
 </body>

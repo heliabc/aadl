@@ -167,18 +167,19 @@ public class AadlModelService {
      * 一键生成入口：根据原始需求走“两步生成”，并持久化最终 AADL。
      */
     public String generateAndPersistFromRequirement(String conversationId, String requirementText) {
-        String aadl = generateFullAadlFromRequirement(requirementText);
+        String aadl = generateFullAadlFromRequirement(conversationId, requirementText);
         persistDocument(conversationId, aadl, requirementText, "", "generate-from-requirement");
         return aadl;
     }
 
     /**
      * 一键生成的非流式实现：先生成架构需求，再基于架构需求生成最终 AADL。
+     * 支持多轮对话：会读取历史对话作为上下文。
      */
-    public String generateFullAadlFromRequirement(String requirementText) {
+    public String generateFullAadlFromRequirement(String conversationId, String requirementText) {
         try {
-            String template = generateRequirementTemplate(requirementText);
-            return generateAadlFromTemplate(template, requirementText);
+            String template = generateRequirementTemplate(conversationId, requirementText);
+            return generateAadlFromTemplate(conversationId, template, requirementText);
         } catch (Exception e) {
             return buildHeuristicAadl(requirementText, "");
         }
@@ -186,6 +187,7 @@ public class AadlModelService {
 
     /**
      * 一键生成的流式入口：第一步生成架构需求，第二步生成 AADL，前端只看到最终 AADL 流。
+     * 支持多轮对话：会读取历史对话作为上下文。
      */
     public void generateFromRequirementStream(String conversationId, String requirementText, SseEmitter emitter) {
         CompletableFuture.runAsync(() -> {
@@ -205,10 +207,8 @@ public class AadlModelService {
                 return;
             }
 
-            List<Map<String, String>> stepOneMessages = List.of(
-                    Map.of("role", "system", "content", "你是AADL模型建模专家，严格按照要求输出格式。"),
-                    Map.of("role", "user", "content", buildArchitectureRequirementTemplatePrompt(requirementText))
-            );
+            // 构建包含历史对话的消息列表
+            List<Map<String, String>> stepOneMessages = buildStepOneMessages(conversationId, requirementText);
             logLlmPrompt("AADL step1 template stream prompt", stepOneMessages);
 
             llmClientService.chatStream(
@@ -233,10 +233,8 @@ public class AadlModelService {
                             return;
                         }
                         String aadlPrompt = buildAadlPromptFromArchitectureRequirement(templateBuilder.toString());
-                        List<Map<String, String>> stepTwoMessages = List.of(
-                                Map.of("role", "system", "content", "你是AADL代码生成专家，根据需求输出AADL代码。"),
-                                Map.of("role", "user", "content", aadlPrompt)
-                        );
+                        // 构建包含历史对话的第二步消息列表
+                        List<Map<String, String>> stepTwoMessages = buildStepTwoMessages(conversationId, aadlPrompt, requirementText);
                         logLlmPrompt("AADL step2 code stream prompt", stepTwoMessages);
 
                         scheduleStepTwoTimeout(
@@ -691,13 +689,11 @@ public class AadlModelService {
 
     /**
      * 一键生成第一步：调用大模型把原始需求整理成结构化架构需求。
+     * 支持多轮对话：读取历史对话作为上下文。
      */
-    private String generateRequirementTemplate(String requirementText) throws Exception {
+    private String generateRequirementTemplate(String conversationId, String requirementText) throws Exception {
         String prompt = buildArchitectureRequirementTemplatePrompt(requirementText);
-        List<Map<String, String>> messages = List.of(
-                Map.of("role", "system", "content", "你是AADL模型建模专家，严格按照要求输出格式。"),
-                Map.of("role", "user", "content", prompt)
-        );
+        List<Map<String, String>> messages = buildStepOneMessages(conversationId, requirementText);
         logLlmPrompt("AADL step1 template prompt", messages);
         String template = llmClientService.chat(messages);
 
@@ -710,21 +706,59 @@ public class AadlModelService {
 
     /**
      * 一键生成第二步：基于结构化架构需求生成 AADL，并做代码块提取或兜底。
+     * 支持多轮对话：读取历史对话作为上下文。
      */
-    private String generateAadlFromTemplate(String template, String requirementText) throws Exception {
+    private String generateAadlFromTemplate(String conversationId, String template, String requirementText) throws Exception {
         String aadlPrompt = buildAadlPromptFromArchitectureRequirement(template);
 
         System.out.println("===== 第二步 LLM 调用生成的 AADL Prompt =====");
         System.out.println(aadlPrompt);
         System.out.println("========================================");
 
-        List<Map<String, String>> messages = List.of(
-                Map.of("role", "system", "content", "你是AADL代码生成专家，只输出AADL代码，不要额外解释。"),
-                Map.of("role", "user", "content", aadlPrompt)
-        );
+        List<Map<String, String>> messages = buildStepTwoMessages(conversationId, aadlPrompt, requirementText);
         logLlmPrompt("AADL step2 code prompt", messages);
         String rawAadl = llmClientService.chat(messages);
         return normalizeAadlOrFallback(rawAadl, requirementText, template);
+    }
+
+    /**
+     * 构建第一步（生成架构需求）的消息列表，包含对话历史。
+     */
+    private List<Map<String, String>> buildStepOneMessages(String conversationId, String requirementText) {
+        List<Map<String, String>> messages = new ArrayList<>();
+        messages.add(Map.of("role", "system", "content", "你是AADL模型建模专家，严格按照要求输出格式。"));
+        
+        // 添加历史对话
+        for (MessageRepository.MessageRecord record : messageRepository.getRecentMessages(conversationId, 10)) {
+            if (!"user".equals(record.role()) && !"assistant".equals(record.role())) {
+                continue;
+            }
+            String module = record.module() == null || record.module().isBlank() ? "" : "[" + record.module() + "] ";
+            messages.add(Map.of("role", record.role(), "content", module + record.content()));
+        }
+        
+        messages.add(Map.of("role", "user", "content", buildArchitectureRequirementTemplatePrompt(requirementText)));
+        return messages;
+    }
+
+    /**
+     * 构建第二步（生成AADL代码）的消息列表，包含对话历史。
+     */
+    private List<Map<String, String>> buildStepTwoMessages(String conversationId, String aadlPrompt, String requirementText) {
+        List<Map<String, String>> messages = new ArrayList<>();
+        messages.add(Map.of("role", "system", "content", "你是AADL代码生成专家，根据需求输出AADL代码。"));
+        
+        // 添加历史对话
+        for (MessageRepository.MessageRecord record : messageRepository.getRecentMessages(conversationId, 10)) {
+            if (!"user".equals(record.role()) && !"assistant".equals(record.role())) {
+                continue;
+            }
+            String module = record.module() == null || record.module().isBlank() ? "" : "[" + record.module() + "] ";
+            messages.add(Map.of("role", record.role(), "content", module + record.content()));
+        }
+        
+        messages.add(Map.of("role", "user", "content", aadlPrompt));
+        return messages;
     }
 
     /**
@@ -933,4 +967,3 @@ public class AadlModelService {
 
 
 }
-

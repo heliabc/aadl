@@ -35,11 +35,6 @@ public class ChatController {
       return emitter;
     }
 
-    if ("evaluation".equals(request.module())) {
-      chatService.streamGeneral(request, emitter);
-      return emitter;
-    }
-
     try {
       chatService.streamGeneral(request, emitter);
     } catch (Exception e) {
